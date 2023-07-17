@@ -8,7 +8,7 @@ I'll start this article with a bold, challenging [maybe even foolhardy] assertio
 
 Why?
 
-The answer to almost all questions is: "Fix your normal lifecycle logic".  That said, there are some fundimental issues on timing that may still catch you out.  I'll explain why.
+The answer to almost all questions on the subject is: "Fix your normal lifecycle logic".  That said, there are some fundimental timing issues that may still catch you out.  I'll explain why.
 
 ## Repository
 
@@ -16,7 +16,7 @@ The code associated with this article is in this repository - [Blazr.OnAfterRend
 
 ## The Synchronisation Context
 
-Blazor uses a Synchronisation Context to manage the UI processes.  The SC is a virtual thread that manages the UI process and guarantees a Task based single thread of execution.  I'll use **SC** throughout the rest of this article: *Synchronisation Context* is too long to repetatively type! 
+Blazor uses a Synchronisation Context to manage the UI processes.  The SC is a virtual thread that manages the UI process and guarantees a Task based single thread of execution.  I'll use **SC** throughout the rest of this article: *Synchronisation Context* is too long to keep typing! 
 
 ## Demo Component
 
@@ -121,7 +121,7 @@ Once the render is complete the renderer queues `OnAfterRender` onto the SC.  Th
 1. The continuation from `OnInitializedAsync`.
 2. An instance of `OnAfterRender` for the component.
  
-As the `OnInitializedAsync` is complete, it's prioritized and runs next. 
+The `OnInitializedAsync` continuation is complete, prioritized and runs next. 
 
 ```text
 OnInitializedAsync Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
@@ -203,7 +203,7 @@ Subsequent OnAfterRenderAsync Completed on Component dea25bbc-7504-4a2c-a7ed-e4f
 
 ## Conclusions
 
-It's obvious from the results that the time it takes the asynchronous process to run is critical to when `OnAfterRender` is run.  If the process is complete when the SC completes the first render, the lifecycle methods will either run to the next yield, or completion before the first `OnAfterRender` executes.  If the process is still running, the initial `OnAfterRender` will execute immediately.
+It's obvious from the results that the time it takes the asynchronous processes within the lifecycle methods to run is critical to when `OnAfterRender` is run.  If the process is complete when the SC completes the first render, the lifecycle methods will either run to the next yield, or completion before the first `OnAfterRender` executes.  If the process is still running, the initial `OnAfterRender` will execute immediately.  You can complicate the issue further by adding multiple awaits spread across the methods.
 
 The changeover point with this code on my development system, today, with a westerly blowing at 14 knots was 7ms.  The sun was out which may or may not make a difference!
 
@@ -211,7 +211,7 @@ The changeover point with this code on my development system, today, with a west
 
 If you run code in `OnAfterRender{Async}`, there is no guarantee when it will run.
 
-Also consider any JS Interop operations.  When can you expect any JSinterop code in `OnAfterRender` to have executed?  You may think that because you've run a render in `OnInitalizedAsync`, fields/objects obtained through the JSInterop should be available.  They may not be.
+Consider any JS Interop operations.  When can you expect any JSinterop code in `OnAfterRender` to have executed?  You may think that because you've run a render in `OnInitalizedAsync`, fields/objects obtained through the JSInterop should be available immedaitely.  They may not be.
 
 
 
