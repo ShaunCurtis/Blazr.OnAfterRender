@@ -1,6 +1,6 @@
 # Blazor's OnAfterRender
 
-Blazor's `OnAfterRender` is a much abused method, along with `StateHasChanged`.  The two are often associated together in voodoo, myth and many *Mad Max* ideas about how to keep the Blazor UI in sync with it's state.
+Blazor's `OnAfterRender` is a much abused method, along with `StateHasChanged`.  The two are often associated together in voodoo, myth and flawed patterns ideas about how to keep the Blazor UI in sync with it's state.
 
 I'll start this article with a bold, challenging [maybe even foolhardy] assertion:
 
