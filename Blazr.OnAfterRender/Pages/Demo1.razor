@@ -1,0 +1,84 @@
+﻿@page "/Demo1"
+@using System.Diagnostics;
+
+<PageTitle>Index</PageTitle>
+
+@{
+    Debug.WriteLine($"Component Rendered {_componentUid}.");
+}
+<h1>The OnAfterRender Myth</h1>
+
+<div class="bg-dark text-white mt-5 m-2 p-2">
+    <pre>@_state</pre>
+</div>
+
+@code {
+    private string? _state = "New";
+    private Guid _componentUid = Guid.NewGuid();
+
+    protected override async void OnInitialized()
+    {
+        Debug.WriteLine($"OnInitialized Started on Component {_componentUid}.");
+        _state = "Loading";
+        StateHasChanged();
+        await Task.Delay(100);
+        Debug.WriteLine($"OnInitialized DataLoad Started on Component {_componentUid}.");
+        TaskSync();
+        _state = "Loaded";
+        Debug.WriteLine($"OnInitialized Completed on Component {_componentUid}.");
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        Debug.WriteLine($"OnInitializedAsync Completed on Component {_componentUid}.");
+        return Task.CompletedTask;
+    }
+
+    protected override void OnParametersSet()
+    {
+        Debug.WriteLine($"OnParametersSet Completed on Component {_componentUid}.");
+    }
+
+    protected override Task OnParametersSetAsync()
+    {
+        Debug.WriteLine($"OnParametersSetAsync Completed on Component {_componentUid}.");
+        return Task.CompletedTask;
+    }
+
+    protected override bool ShouldRender()
+    {
+        Debug.WriteLine($"ShouldRender on Component {_componentUid}.");
+        return true;
+    }
+
+
+    private void TaskSync()
+    => Thread.Sleep(1000);
+
+    private async Task TaskAsync()
+        => await Task.Yield();
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Debug.WriteLine($"First OnAfterRender Started on Component {_componentUid}.");
+            StateHasChanged();
+            Debug.WriteLine($"First OnAfterRender Completed on Component {_componentUid}.");
+        }
+        else
+            Debug.WriteLine($"Subsequent OnAfterRender Completed on Component {_componentUid}.");
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Debug.WriteLine($"First OnAfterRenderAsync Completed on Component {_componentUid}.");
+        }
+        else
+            Debug.WriteLine($"Subsequent OnAfterRenderAsync Completed on Component {_componentUid}.");
+        return Task.CompletedTask;
+    }
+
+}
