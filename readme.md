@@ -1,271 +1,26 @@
-#  The Blazor OnAfterRender Myth
+# Blazor's OnAfterRender
+
+The Blazor world is full of voodoo, myth and many *Mad Max* ideas about coding `OnAfterRender`.
 
 I'll start this article with a bold, challenging [maybe even foolhardy] assertion:
 
 > If your code in `OnAfterRender{Async}` isn't doing JS interop stuff, it's in the wrong place!
 
+Why?
 
-## Our First Page
+The answer to almost all questions is: "Fix your normal lifecycle logic".  That said, there are some fundimental issues on timing that may still catch you out.  I'll explain why.
 
-This is a simple page to illustrate how the myth can be born.  You are making a database call to get some data and want to display *Loading* while it's happening.  You're *keeping it simple*, steering well clear of the *async* dark art.
+## Repository
 
-What you code is this. 
+The code associated with this article is in this repository - [Blazr.OnAfterRender](https://github.com/ShaunCurtis/Blazr.OnAfterRender).
 
-What you get is a blank screen and then *Loaded*: no *Loading*.
+## The Synchronisation Context
 
-```csharp
-@page "/"
+Blazor uses a Synchronisation Context to manage the UI processes.  The SC is a virtual thread that manages the UI process and guarantees a Task based single thread of execution.  I'll use **SC** throughout the rest of this article: *Synchronisation Context* is too long to repetatively type! 
 
-<PageTitle>The OnAfterRender Myth</PageTitle>
+## Demo Component
 
-<h1>The OnAfterRender Myth</h1>
-
-<div class="bg-dark text-white mt-5 m-2 p-2">
-    <pre>@_state</pre>
-</div>
-
-@code {
-    private string? _state = "New";
-
-    protected override void OnInitialized()
-    {
-        _state = "Loading";
-        TaskSync();
-        _state = "Loaded";
-    }
-
-    // Emulate a synchronous blocking database operation
-    private void TaskSync()
-        => Thread.Sleep(1000);
-}
-```
-
-### StateHasChanged
-
-You go searching, find `StateHasChanged` and update your code.
-
-But to no avail.
-
-```caharp
-    protected override void OnInitialized()
-    {
-        _state = "Loading";
-        StateHasChanged();
-        TaskSync();
-        _state = "Loaded";
-    }
-```
-
-### Task.Delay
-
-You search further and find `await Task.Delay(1)`.  You start typing `await` and the Visual Studio editor adds an `async` to your method:
-
-```csharp
-    protected override async void OnInitialized()
-```
-
-You complete your change.
-
-What you get is the opposite of what you had.  *Loading*, but no completion to `Loaded`.
-
-```csharp
-    protected override async void OnInitialized()
-    {
-        _state = "Loading";
-        StateHasChanged();
-        await Task.Delay(1);
-        TaskSync();
-        _state = "Loaded";
-    }
-```
-
-### OnAfterRender
-
-More searching reveals `OnAfterRender`.  You add it to your code.
-
-Great, it now works as expected.
-
-```csharp
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-            StateHasChanged();
-    }
-```
-
-You move on thinking *problem solved* and start to use the pattern elsewhere.   The myth is perpetuated, you've acquired some voodoo magic (which you may propogate), and learned nothing. 
-
-### The Obvious Answer
-
-The answer to the problem above is obvious to a more experienced coder: use `OnInitializedAsync` and async database operations.  But to the person above, that's days or weeks down the road.  Meanwhile, they've learned a "dirty" anti pattern to make it work for them.
-
-## Delving into The Process
-
-To delving into the process we need to add some debug statements to the code.   Breakpoints won't tell the true story: Blazor processes are asychronous.
-
-```csharp
-@page "/"
-@using System.Diagnostics;
-
-<PageTitle>Index</PageTitle>
-
-@{
-    Debug.WriteLine($"Render Component {_componentUid}.");
-}
-
-<h1>The OnAfterRender Myth</h1>
-
-<div class="bg-dark text-white mt-5 m-2 p-2">
-    <pre>@_state</pre>
-</div>
-
-@code {
-    private string? _state = "New";
-    private Guid _componentUid = Guid.NewGuid();
-
-    protected override async void OnInitialized()
-    {
-        _state = "Loading";
-        StateHasChanged();
-        await Task.Delay(100);
-        TaskSync();
-        _state = "Loaded";
-        Debug.WriteLine($"OnInitialized on Component {_componentUid}.");
-    }
-
-    protected override Task OnInitializedAsync()
-    {
-        Debug.WriteLine($"OnInitializedAsync on Component {_componentUid}.");
-        return Task.CompletedTask;
-    }
-
-    protected override void OnParametersSet()
-    {
-        Debug.WriteLine($"OnParametersSet on Component {_componentUid}.");
-    }
-
-    protected override Task OnParametersSetAsync()
-    {
-        Debug.WriteLine($"OnParametersSetAsync on Component {_componentUid}.");
-        return Task.CompletedTask;
-    }
-
-    protected override bool ShouldRender()
-    {
-        Debug.WriteLine($"ShouldRender on Component {_componentUid}.");
-        return true;
-    }
-
-
-    private void TaskSync()
-    => Thread.Sleep(1000);
-
-    private async Task TaskAsync()
-        => await Task.Yield();
-
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-        {
-            Debug.WriteLine($"Fist OnAfterRender on Component {_componentUid}.");
-            StateHasChanged();
-        }
-        else
-            Debug.WriteLine($"Fist OnAfterRender on Component {_componentUid}.");
-    }
-
-    protected override Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            Debug.WriteLine($"Fist OnAfterRenderAsync on Component {_componentUid}.");
-        }
-        else
-            Debug.WriteLine($"Fist OnAfterRenderAsync on Component {_componentUid}.");
-        return Task.CompletedTask;
-    }
-}
-```
-
-What you get is this:
-
-```text
-OnInitialized Started on Component 88c36d17-a223-4cbd-b4b5-30f1738bd2c6.
-```
-
-We reach the `await Task.Delay(1);`.
-
-`OnInitialized` yields back to the caller. As it returns a void there's nothing to await.  So it doesn't await the completion of `OnInitialized`, but continues on executing the lifecycle methods.  All the way to a componwnt render: which displays *Loading*.
-
-```text
-OnInitializedAsync Completed on Component 88c36d17-a223-4cbd-b4b5-30f1738bd2c6.
-OnParametersSet Completed on Component 88c36d17-a223-4cbd-b4b5-30f1738bd2c6.
-OnParametersSetAsync Completed on Component 88c36d17-a223-4cbd-b4b5-30f1738bd2c6.
-Component Rendered 88c36d17-a223-4cbd-b4b5-30f1738bd2c6.
-```
-
-At this point we have a `OnInitialized` process totally out-of-sync with the main lifecycle.  The other lifecycle methods have completed.
-
-At this poiunt there are two processes that need to run:
-
-1. The completion of `OnInitialized` after a one millisecond delay.
-2. The OnAfterRender events on the component.
-
-The lifecycle methods normally take at least 1 millisecond, so the delay has completed, `OnInitialized` wins and continues loading the data and runs to completion.
-
-```text
-OnInitialized DataLoad Started on Component 95da5b4b-aa29-4bb7-983a-57a5a4f3de95.
-OnInitialized Completed on Component 95da5b4b-aa29-4bb7-983a-57a5a4f3de95.
-```
-
-`OnAfterRender` starts and calls `StateHasChanged` and renders the component.
-
-```text
-First OnAfterRender Started on Component 95da5b4b-aa29-4bb7-983a-57a5a4f3de95.
-ShouldRender on Component 95da5b4b-aa29-4bb7-983a-57a5a4f3de95.
-Component Rendered 95da5b4b-aa29-4bb7-983a-57a5a4f3de95.
-```
-
-The first `OnAfterRender` sequence completes.
-
-```text
-First OnAfterRender Completed on Component 95da5b4b-aa29-4bb7-983a-57a5a4f3de95.
-First OnAfterRenderAsync Completed on Component 95da5b4b-aa29-4bb7-983a-57a5a4f3de95.
-```
-
-Followed by the second round caused by the call to `StateHasChanged` in the first cycle 
-
-```text
-Subsequent OnAfterRender Completed on Component 95da5b4b-aa29-4bb7-983a-57a5a4f3de95.
-Subsequent OnAfterRenderAsync Completed on Component 95da5b4b-aa29-4bb7-983a-57a5a4f3de95.
-```
-
-If you extend the Task delay period out to say 100 milliseconds you get a different result. 
-
-
-```text
-OnInitialized Started on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-OnInitializedAsync Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-OnParametersSet Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-OnParametersSetAsync Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-Component Rendered 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-First OnAfterRender Started on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-ShouldRender on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-Component Rendered 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-First OnAfterRender Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-First OnAfterRenderAsync Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-Subsequent OnAfterRender Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-Subsequent OnAfterRenderAsync Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-```
-
-The whole render process completes before `OnInitialized` completes and no *Loaded*.
-
-```text
-OnInitialized DataLoad Started on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-OnInitialized Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
-```
-
-## The Better Way
+This simple component demostrates how to code a common async loading process, such as loading a record or record set from a data source or API.  It contains debug statements in the lifecycle methods so we can document the order in which events occur.      
 
 ```csharp
 @page "/"
@@ -291,9 +46,9 @@ OnInitialized Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
     {
         Debug.WriteLine($"OnInitializedAsync Started on Component {_componentUid}.");
         _state = "Loading";
-        await Task.Yield();
         Debug.WriteLine($"OnInitializedAsync DataLoad Started on Component {_componentUid}.");
-        TaskSync();
+        await TaskYieldAsync();
+        //await TaskDelayAsync();
         _state = "Loaded";
         Debug.WriteLine($"OnInitializedAsync Completed on Component {_componentUid}.");
     }
@@ -319,8 +74,11 @@ OnInitialized Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
     private void TaskSync()
     => Thread.Sleep(1000);
 
-    private async Task TaskAsync()
+    private async Task TaskYieldAsync()
         => await Task.Yield();
+
+    private async Task TaskDelayAsync()
+    => await Task.Delay(6);
 
     protected override void OnAfterRender(bool firstRender)
     {
@@ -342,46 +100,120 @@ OnInitialized Completed on Component 7b6c57a2-ce89-4b73-bf3d-9a1940b2e4c8.
 }
 ```
 
-The sequence now looks like this:
+We can run this code and get a log of the sequence of events.
+
+The lifecycle methods run as expected.
 
 ```text
-OnInitialized Completed on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-OnInitializedAsync Started on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
+OnInitialized Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
+OnInitializedAsync Started on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
+OnInitializedAsync DataLoad Started on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
 ```
 
-We reach the `Task.Yield()` which yields back to the UI handler.  This calls `StateHasChanged` and yields which allows the Renderer to render the compenent.
-
-```text
-Component Rendered e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-```
+At this point `TaskYieldAsync` yields to `OnInitializedAsync` which yields to the internal `ComponentBase` method `RunInitAndSetParametersAsync`. This in turn yields to the SC: the renderer renders the component.  
 
 ```text
-OnInitializedAsync DataLoad Started on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-OnInitializedAsync Completed on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-OnParametersSet Completed on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-OnParametersSetAsync Completed on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-ShouldRender on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-Component Rendered e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-First OnAfterRender Completed on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-First OnAfterRenderAsync Completed on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-Subsequent OnAfterRender Completed on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
-Subsequent OnAfterRenderAsync Completed on Component e4608b8e-80be-4f1a-b7d5-bfaad2b0ee7d.
+Component Rendered e45633be-c5a1-451b-99a2-ce64f128a65c.
 ```
+
+Once the render is complete the renderer queues `OnAfterRender` onto the SC.  The queue has two tasks:
+
+1. The continuation from `OnInitializedAsync`.
+2. An instance of `OnAfterRender` for the component.
  
+As the `OnInitializedAsync` is complete, it's prioritized and runs next. 
 
-With a 100ms delay.
 ```text
-OnInitialized Completed on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-OnInitializedAsync Started on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-Component Rendered f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-First OnAfterRender Completed on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-First OnAfterRenderAsync Completed on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-OnInitializedAsync DataLoad Started on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-OnInitializedAsync Completed on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-OnParametersSet Completed on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-OnParametersSetAsync Completed on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-ShouldRender on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-Component Rendered f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-Subsequent OnAfterRender Completed on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
-Subsequent OnAfterRenderAsync Completed on Component f25d284c-a6bc-433d-b2c0-bcb78b7954c4.
+OnInitializedAsync Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
+OnParametersSet Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
+OnParametersSetAsync Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
 ```
+
+The lifecycle methods run to completion and the internal `ComponentBase` method `CallOnParametersSetAsync` completes and makes the final call to `StateHasChanged`.  The SC prioritizes this over the `OnAfterRender` task and renders the component. 
+
+```text
+ShouldRender on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
+Component Rendered e45633be-c5a1-451b-99a2-ce64f128a65c.
+```
+
+The component renders and a second `OnAfterRender` is queued onto the SC. 
+
+There are now two `OnAfterRender` tasks which run to completion.
+
+```
+First OnAfterRender Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
+First OnAfterRenderAsync Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
+Subsequent OnAfterRender Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
+Subsequent OnAfterRenderAsync Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
+```
+
+## Task Delay Vs Task Yield
+
+If we replace the `Task.Yield()` with a `Task.Delay(1)` do we get the same result?
+
+Yes.  The sequence is shown below.
+
+```text
+OnInitialized Completed on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+OnInitializedAsync Started on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+OnInitializedAsync DataLoad Started on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+Component Rendered 2103c005-cc57-497b-ab3d-0e2894fe173e.
+OnInitializedAsync Completed on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+OnParametersSet Completed on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+OnParametersSetAsync Completed on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+ShouldRender on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+Component Rendered 2103c005-cc57-497b-ab3d-0e2894fe173e.
+First OnAfterRender Completed on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+First OnAfterRenderAsync Completed on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+Subsequent OnAfterRender Completed on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+Subsequent OnAfterRenderAsync Completed on Component 2103c005-cc57-497b-ab3d-0e2894fe173e.
+```
+
+## A Longer Delay
+
+What about a longer delay that emulates a slow database transaction or API call.
+
+The result below shows the sequence with a 100ms delay. 
+
+```text
+OnInitialized Completed on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+OnInitializedAsync Started on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+OnInitializedAsync DataLoad Started on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+Component Rendered dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+```
+The same, but now a change.  
+
+The `OnAfterRender` associated with the first render happens ahead of the `OnInitializedAsync` continuation because it's still being awaited - the timer hasn't expired [or in the real world, the database transaction hasn't yet returned a result].
+
+```text
+First OnAfterRender Completed on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+First OnAfterRenderAsync Completed on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+```
+And then the continuation and second `OnAfterRender`.
+
+```text
+OnInitializedAsync Completed on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+OnParametersSet Completed on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+OnParametersSetAsync Completed on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+ShouldRender on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+Component Rendered dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+Subsequent OnAfterRender Completed on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+Subsequent OnAfterRenderAsync Completed on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
+```
+
+## Conclusions
+
+It's obvious from the results that the time it takes the asynchronous process to run is critical to when `OnAfterRender` is run.  If the process is complete when the SC completes the first render, the lifecycle methods will either run to the next yield, or completion before the first `OnAfterRender` executes.  If the process is still running, the initial `OnAfterRender` will execute immediately.
+
+The changeover point with this code on my development system, today, with a westerly blowing at 14 knots was 7ms.  The sun was out which may or may not make a difference!
+
+## Wrap Up
+
+If you run code in `OnAfterRender{Async}`, there is no guarantee when it will run.
+
+Also consider any JS Interop operations.  When can you expect any JSinterop code in `OnAfterRender` to have executed?  You may think that because you've run a render in `OnInitalizedAsync`, fields/objects obtained through the JSInterop should be available.  They may not be.
+
+
+
+
+
