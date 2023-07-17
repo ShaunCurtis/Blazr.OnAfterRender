@@ -8,11 +8,11 @@ I'll start this article with a bold, challenging [maybe even foolhardy] assertio
 
 Why?
 
-In almost all instances, the reason people resort to placing component logic in `OnAfterRender`, and often making several calls to `StateHasChanged` is their component logic is flawed.  Fix the logic.  Almost everything can be accomplished in `OnInitialized{Async}/OnParametersSet{Async}`.
+In almost all instances, the reason people resort to placing component logic in `OnAfterRender`, and often making several calls to `StateHasChanged`, is their component logic is flawed.  Fix the logic: almost everything can be accomplished in `OnInitialized{Async}/OnParametersSet{Async}`.
 
 Even when used correctly, there are fundimental timing issues with `OnAfterRender` that may still catch you out.
 
-In this article I'll show you how to document the sequence of events in your component and use the technique to demonstrate the timing issues.
+In this article I'll show you how to document the sequence of events in your component and use the technique to hightlight the timing issues.
 
 ## Repository
 
@@ -24,14 +24,14 @@ Blazor uses a Synchronisation Context to manage the UI processes.  The SC is a v
 
 ## How to Identify Problems
 
-Breakpoints aren't the answer.  Blazor is fundinentally an async application, so async blocks of code may complete while you're stepping through code, that would not have done so at normal execution speed.
+Breakpoints aren't the answer.  Blazor is an async application: async blocks of code [that at normal execution speed would not have completed] will have completed by the time you [very slowly] step through code.
 
 The two main techniques I use are:
 
 1. A Component GUID for tracking instances.
 2. Debug statements in the lifecycle methods to document the order in which events occur.      
 
-I'll demonstrate using them in identifying the timing issues I discussed above.
+I'll demonstrate using them in identifying the timing issues I raised above.
 
 ## Demo Component
 
