@@ -1,8 +1,10 @@
 #  The Async OnInitialized
 
+A demonstration of one bad implementastion I've seen.
+
 ## Our First Page
 
-This is a simple page to illustrate how the myth can be born.  You are making a database call to get some data and want to display *Loading* while it's happening.  You're *keeping it simple*, steering well clear of the *async* dark art.
+This is a simple page to illustrate how myths can be born.  You are making a database call to get some data and want to display *Loading* while it's happening.  You're *keeping it simple*, steering well clear of the *async* dark art.
 
 What you code is this. 
 
@@ -88,11 +90,12 @@ Great, it now works as expected.
     }
 ```
 
-You move on thinking *problem solved* and start to use the pattern elsewhere.   The myth is perpetuated, you've acquired some voodoo magic (which you may propogate), and learned nothing. 
+You move on thinking *problem solved* and start to use the pattern elsewhere.
 
 ### The Obvious Answer
 
-The answer to the problem above is obvious to a more experienced coder: use `OnInitializedAsync` and async database operations.  But to the person above, that's days or weeks down the road.  Meanwhile, they've learned a "dirty" anti pattern to make it work for them.
+The answer to the problem above is obvious to a more experienced coder: use `OnInitializedAsync` and async database operations.  But to the person above, that's days or weeks down the road.  Meanwhile, they've learned a "dirty" anti pattern to make it work.   The myth is perpetuated, you've acquired some voodoo magic (which you may propogate), and learned nothing.
+
 
 ## Delving into The Process
 

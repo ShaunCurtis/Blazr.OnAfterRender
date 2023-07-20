@@ -1,41 +1,10 @@
 # Blazor's OnAfterRender
 
-Blazor's `OnAfterRender` is a much abused method, along with `StateHasChanged`.  The two are often associated together in voodoo, myth and flawed patterns ideas about how to keep the Blazor UI in sync with it's state.
-
-I'll start this article with a bold, challenging [maybe even foolhardy] assertion:
-
-> If your code in `OnAfterRender{Async}` isn't doing JS interop stuff, it's in the wrong place!
-
-Why?
-
-In almost all instances, the reason people resort to placing component logic in `OnAfterRender`, and often making several calls to `StateHasChanged`, is their component logic is flawed.  Fix the logic: almost everything can be accomplished in `OnInitialized{Async}/OnParametersSet{Async}`.
-
-Even when used correctly, there are fundimental timing issues with `OnAfterRender` that may still catch you out.
-
-In this article I'll show you how to document the sequence of events in your component and use the technique to hightlight the timing issues.
-
-## Repository
-
-The code associated with this article is in this repository - [Blazr.OnAfterRender](https://github.com/ShaunCurtis/Blazr.OnAfterRender).
-
-## The Synchronisation Context
-
-Blazor uses a Synchronisation Context to manage the UI processes.  The SC is a virtual thread that manages the UI process and guarantees a Task based single thread of execution.  I'll use **SC** throughout the rest of this article: *Synchronisation Context* is too long to keep typing! 
-
-## How to Identify Problems
-
-Breakpoints aren't the answer.  Blazor is an async application: async blocks of code [that at normal execution speed would not have completed] will have completed by the time you [very slowly] step through code.
-
-The two main techniques I use are:
-
-1. A Component GUID for tracking instances.
-2. Debug statements in the lifecycle methods to document the order in which events occur.      
-
-I'll demonstrate using them in identifying the timing issues I raised above.
+This Repo demnonstrates why you can't trust the execution order of the component lifecycle methods.
 
 ## Demo Component
 
-This simple component demostrates how to code a common async process, such as loading a record or record set from a data source or API.
+This simple component demonstrates a common async process, such as loading a record or record set from a data source or API.  `Debug.WriteLine` statements throughout the code document the execution order. 
 
 ```csharp
 @page "/"
@@ -115,7 +84,7 @@ This simple component demostrates how to code a common async process, such as lo
 }
 ```
 
-Run this code and get a log of the sequence of events.
+Run this code.
 
 The lifecycle methods start to run as expected.
 
@@ -131,12 +100,12 @@ At this point `TaskYieldAsync` yields to `OnInitializedAsync` which yields to th
 Component Rendered e45633be-c5a1-451b-99a2-ce64f128a65c.
 ```
 
-Once the render is complete the renderer queues `OnAfterRender` onto the SC.  The queue has two tasks:
+Once the render completes, it invokes the `OnAfterRender` on the SC.  The queue has two tasks:
 
 1. The continuation from `OnInitializedAsync`.
 2. An instance of `OnAfterRender` for the component.
  
-The `OnInitializedAsync` continuation is complete, is prioritized and runs next. 
+The `OnInitializedAsync` continuation runs to completion [there are no further awaits]. 
 
 ```text
 OnInitializedAsync Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
@@ -225,10 +194,6 @@ The changeover point with this code on my development system, today, with a west
 If you run code in `OnAfterRender{Async}`, there is no guarantee when it will run.
 
 Consider any JS Interop operations.  When can you expect any JSinterop code in `OnAfterRender` to have executed?  You may think that because you've run a render in `OnInitalizedAsync`, fields/objects obtained through the JSInterop should be available immedaitely.  They may not be.
-
-## Logic Problem Solving
-
-Hopefully this article has shown you how to document the running order of your code, the first step in resolving flaws in your logic.
 
 
 
