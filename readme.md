@@ -187,6 +187,8 @@ Subsequent OnAfterRender Completed on Component dea25bbc-7504-4a2c-a7ed-e4f2172c
 Subsequent OnAfterRenderAsync Completed on Component dea25bbc-7504-4a2c-a7ed-e4f2172c5c3b.
 ```
 
+![Task Sequencing with Long Delay](./images/Task-Sequencing-Long-Delay.png)
+
 ## Conclusions
 
 The results strongly suggest that the time it takes the asynchronous processes to run is critical to when `OnAfterRender` is run.  If the process is complete when the SC completes the first render, the lifecycle methods will either run to the next yield, or completion before the first `OnAfterRender` executes.  If the process is still running, the initial `OnAfterRender` will execute immediately.  You can complicate the issue further by adding multiple awaits spread across the methods.
