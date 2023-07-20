@@ -131,6 +131,8 @@ Subsequent OnAfterRender Completed on Component e45633be-c5a1-451b-99a2-ce64f128
 Subsequent OnAfterRenderAsync Completed on Component e45633be-c5a1-451b-99a2-ce64f128a65c.
 ```
 
+![Task Sequencing](./images/Task-Sequencing.png)
+
 ## Task Delay Vs Task Yield
 
 If we replace the `Task.Yield()` with a `Task.Delay(1)` do we get the same result?
