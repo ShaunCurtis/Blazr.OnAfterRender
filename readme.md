@@ -1,6 +1,6 @@
 # Blazor's OnAfterRender
 
-This Repo demonstrates why you can't trust the execution order of the component lifecycle methods.
+This Repo demonstrates some differences in the execution order of the component lifecycle methods.
 
 ## Demo Component
 
