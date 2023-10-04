@@ -1,28 +1,32 @@
 ﻿@inject IJSRuntime JS
 @inject IHttpClientFactory ClientFactory
 
-<div>
-    <img hidden="@_loading" id="@_uid" />
-    @if (_loading)
-    {
-        <span>Loading...</span>
-    }
-</div>
+<img hidden="@_loading" id="@_uid" />
+@if (_loading)
+{
+    <span>Loading...</span>
+}
 
+@{
+    Console.WriteLine($"{_uid} => Rendered");
+}
 @code {
     [Parameter] public string? Url { get; set; }
 
     private bool _loading;
-    private bool _imageToRender;
     private string _uid = Guid.NewGuid().ToString();
+
+    private bool _imageToRender;
     private Stream? _stream;
     private string? _currentUrl;
 
     protected async override Task OnParametersSetAsync()
     {
         // Detect any Url changes and update on change
+        Console.WriteLine($"{_uid} => OnParametersSetAsync");
         if (_currentUrl != this.Url)
         {
+            Console.WriteLine($"{_uid} => OnParametersSetAsync - handling new Url");
             _loading = true;
             using var http = this.ClientFactory.CreateClient();
             _stream = await http.GetStreamAsync(this.Url);
@@ -30,15 +34,18 @@
             _loading = false;
             _currentUrl = this.Url;
             _imageToRender = true;
-            // second render hsappens on completion
+            Console.WriteLine($"{_uid} => OnParametersSetAsync - Streaming complete");
+            // second render happens on completion
         }
     }
 
     protected async override Task OnAfterRenderAsync(bool firstRender)
     {
+        Console.WriteLine($"{_uid} => OnAfterRenderAsync");
         // Only update the image if we've had a change and a completed stream to use
         if (_imageToRender && _stream is not null)
         {
+            Console.WriteLine($"{_uid} => OnAfterRenderAsync - Handle Image");
             var streamRef = new DotNetStreamReference(_stream);
             await JS.InvokeVoidAsync("setImage", _uid, streamRef);
             // clean up and set flags

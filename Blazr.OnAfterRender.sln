@@ -7,14 +7,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Blazr.OnAfterRender", "Blaz
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{369B42CF-374F-431A-A4D2-C1262C6D8870}"
 	ProjectSection(SolutionItems) = preProject
-		article.md = article.md
-		Async-OnInitialized.md = Async-OnInitialized.md
+		OnAfterRender-ExecutionOrder.md = OnAfterRender-ExecutionOrder.md
+		OnAfterRender-Article.md = OnAfterRender-Article.md
 		readme.md = readme.md
+		OnAfterRender-Bad.md = OnAfterRender-Bad.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Blazr.Wasm.OnAfterRender", "Blazr.Wasm.OnAfterRender\Blazr.Wasm.OnAfterRender.csproj", "{CB8C53EB-177D-49A1-96C7-BD3190793CDB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blazr.OnAfterRender.Demo", "Blazr.OnAfterRender.Demo\Blazr.OnAfterRender.Demo.csproj", "{4B0CA4C2-FBC8-4BF4-AE34-6863FDC9760D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Blazr.OnAfterRender.Demo", "Blazr.OnAfterRender.Demo\Blazr.OnAfterRender.Demo.csproj", "{4B0CA4C2-FBC8-4BF4-AE34-6863FDC9760D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

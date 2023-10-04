@@ -1,6 +1,6 @@
 #  The Async OnInitialized
 
-A demonstration of one bad implementastion I've seen.
+A demonstration of one bad implementation I've seen.
 
 ## Our First Page
 
