@@ -1,6 +1,6 @@
-# Blazor's OnAfterRender
+﻿# Blazor's OnAfterRender
 
-`OnAfterRender{Async}` is often used, along with calls to `StateHasChanged`, to try and fix rendering problems in Blazor components.  Code that starts in `OnInitialized{Async}/OnParametersSet{Async}` migrates into `OnAfterRender{Async}` to make it work.  Normally with a call to `StateHasChanged` at the end to get the component UI to reflect the component state.  It's used as if it's part of the component "lifecycle" methods.
+`OnAfterRender{Async}` is often used, along with calls to `StateHasChanged`, to try and fix rendering problems in Blazor components.  Code that starts in `OnInitialized{Async}/OnParametersSet{Async}` migrates into `OnAfterRender{Async}` to make it work, often with a call to `StateHasChanged` at the end to get the component UI to reflect the component state.  It's used as if it's part of the component "lifecycle" methods.
 
 It isn't: this article aims to enlighten you on what it really is, and how you should be using it in component design.
 
@@ -14,7 +14,7 @@ I use the term *Component Lifecycle* as described in this [Microsoft Learn Artic
 
 ## StateHasChanged
 
-`StateHasChanged` doesn't render the component.  It simply places a `RenderFragment` on the Renderer's queue.  There is no direct execution linkage between calling `StateHasChanged` and the renderer running the `RenderFragment` placed on the queue.  The queue is serviced by a totally separate process running on the `Synchronisation Context`.  If you execute a block of synchronous code with a call to `StateHasChanged` in the middle, the component will not render until after that synchronous block completes. 
+`StateHasChanged` doesn't render the component.  It simply places a `RenderFragment` on the Renderer's queue.  There is no direct execution linkage between calling `StateHasChanged` and the renderer running the `RenderFragment` placed on the queue.  The queue is serviced by a totally separate process running on the `Synchronisation Context`.  If you execute a block of synchronous code with a call to `StateHasChanged` in the middle, the component can't render until after that synchronous block completes. 
 
 ## So What is OnAfterRender?
 
@@ -286,3 +286,67 @@ public override async Task SetParametersAsync(ParameterView parameters)
 }
 ```
 
+## Appendix
+
+Example service definition:
+
+```csharp
+// Add services to the container.
+builder.Services.AddRazorPages();
+builder.Services.AddServerSideBlazor();
+builder.Services.AddSingleton<WeatherForecastService>();
+builder.Services.AddHttpClient();
+
+var app = builder.Build();
+```
+
+Host page:
+
+```html
+@page "/"
+@using Microsoft.AspNetCore.Components.Web
+@namespace Blazr.OnAfterRender.Demo.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="~/" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link href="css/site.css" rel="stylesheet" />
+    <link href="Blazr.OnAfterRender.Demo.styles.css" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="favicon.png"/>
+    <component type="typeof(HeadOutlet)" render-mode="ServerPrerendered" />
+</head>
+<body>
+    <component type="typeof(App)" render-mode="ServerPrerendered" />
+
+    <div id="blazor-error-ui">
+        <environment include="Staging,Production">
+            An error has occurred. This application may no longer respond until reloaded.
+        </environment>
+        <environment include="Development">
+            An unhandled exception has occurred. See browser dev tools for details.
+        </environment>
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_framework/blazor.server.js"></script>
+    <script>
+        window.setImage = async (imageElementId, imageStream) => {
+            const arrayBuffer = await imageStream.arrayBuffer();
+            const blob = new Blob([arrayBuffer]);
+            const url = URL.createObjectURL(blob);
+            const image = document.getElementById(imageElementId);
+            image.onload = () => {
+                URL.revokeObjectURL(url);
+            }
+            image.src = url;
+        }
+    </script>
+</body>
+</html>
+```
