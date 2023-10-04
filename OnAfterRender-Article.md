@@ -1,6 +1,6 @@
 ﻿# Blazor's OnAfterRender
 
-`OnAfterRender{Async}` is often used, along with calls to `StateHasChanged`, to try and fix rendering problems in Blazor components.  Code that starts in `OnInitialized{Async}/OnParametersSet{Async}` migrates into `OnAfterRender{Async}` to make it work, often with a call to `StateHasChanged` at the end to get the component UI to reflect the component state.  It's used as if it's part of the component "lifecycle" methods.
+`OnAfterRender{Async}` is often used, along with calls to `StateHasChanged`, to try and fix rendering logic problems in Blazor components.  Code that starts in `OnInitialized{Async}/OnParametersSet{Async}` migrates into `OnAfterRender{Async}` to make it work, often with a call to `StateHasChanged` at the end to get the component UI to reflect the component state.  It's used as if it's part of the component "lifecycle" methods.
 
 It isn't: this article aims to enlighten you on what it really is, and how you should be using it in component design.
 
@@ -135,6 +135,8 @@ https://learn.microsoft.com/en-us/aspnet/core/blazor/images?view=aspnetcore-7.0#
 
 It has both C# logic and JsInterop logic.
 
+See the Appoendix for the service registration and `_Host.cshtml`.
+
 ### Image Component
 
 First the markup and UI logic.
@@ -265,9 +267,9 @@ The output from one of the image components.
 
 ## Summing up
 
-Hopefully I've demonstrated why you should rarely need to use `OnAfterRender` in components.  I don't like defining bad practices: but I consider my rules good practice.  I have seen comments from other experienced Blazor programmers who say that they rarely use `OnAfterRender`.  I use it in less than 1% of the components I write.
+Hopefully I've demonstrated why you should rarely need to use `OnAfterRender` in components.  I don't like defining bad practices: but I consider my rules good practice.  I have seen comments from other experienced Blazor programmers who say that they rarely use `OnAfterRender`.
 
-I don't use `ComponentBase`.  My base component doesn't even implement `IHandleAfterRender`  I implement it where I need it.  
+I use it in less than 1% of the components I write. I don't use `ComponentBase`.  My base component doesn't even implement `IHandleAfterRender`  I implement it where I need it.  
 
 Where to run your code:
 
