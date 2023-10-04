@@ -1,0 +1,52 @@
+﻿@inject IJSRuntime JS
+@inject IHttpClientFactory ClientFactory
+
+<div>
+    <img hidden="@_loading" id="@_uid" />
+    @if (_loading)
+    {
+        <span>Loading...</span>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Url { get; set; }
+
+    private bool _loading;
+    private bool _imageToRender;
+    private string _uid = Guid.NewGuid().ToString();
+    private Stream? _stream;
+    private string? _currentUrl;
+
+    protected async override Task OnParametersSetAsync()
+    {
+        // Detect any Url changes and update on change
+        if (_currentUrl != this.Url)
+        {
+            _loading = true;
+            using var http = this.ClientFactory.CreateClient();
+            _stream = await http.GetStreamAsync(this.Url);
+            // First remder happens here on the async yield
+            _loading = false;
+            _currentUrl = this.Url;
+            _imageToRender = true;
+            // second render hsappens on completion
+        }
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Only update the image if we've had a change and a completed stream to use
+        if (_imageToRender && _stream is not null)
+        {
+            var streamRef = new DotNetStreamReference(_stream);
+            await JS.InvokeVoidAsync("setImage", _uid, streamRef);
+            // clean up and set flags
+            _stream.Dispose();
+            streamRef.Dispose();
+            streamRef = null;
+            _stream = null;
+            _imageToRender = false;
+        }
+    }
+}

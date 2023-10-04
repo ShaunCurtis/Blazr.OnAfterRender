@@ -1,0 +1,21 @@
+﻿@page "/"
+<h3>Test</h3>
+@{
+    Console.WriteLine("Rendered");
+}
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine("OnInitializedAsync-1");
+        await Task.Delay(100);
+        Console.WriteLine("OnInitializedAsync-2");
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        Console.WriteLine("OnAfterRenderAsync");
+        return Task.CompletedTask;
+    }
+
+}
